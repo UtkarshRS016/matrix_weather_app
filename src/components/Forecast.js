@@ -157,10 +157,10 @@ const Forecast = () => {
   if (!currentUser) {
    navigate('/login');
   }
-  else {
+  else if(city){
    fetchWeatherByCity();
   }
- }, [currentUser, navigate, fetchWeatherByCity]);
+ }, [currentUser, navigate, fetchWeatherByCity, city]);
 
 
  useEffect(() => {
