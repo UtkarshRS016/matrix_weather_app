@@ -100,6 +100,7 @@ const Forecast = () => {
      else {
       setWeather(data);
       setSpeakWeather(data);
+      setCity(city);
      }
 
     }
@@ -153,14 +154,26 @@ const Forecast = () => {
  };
 
 
- useEffect(() => {
-  if (!currentUser) {
+ // useEffect(() => {
+ //  if (!currentUser) {
+ //   navigate('/login');
+ //  }
+ //  else if(city && !loading){
+ //   fetchWeatherByCity();
+ //  }
+ // }, [currentUser, navigate, fetchWeatherByCity, city, loading]);
+
+  useEffect(() => {
+  if (!currentUser || !currentUser.username) {
    navigate('/login');
   }
-  else if(city && !loading){
+ }, [currentUser, navigate]);
+
+  useEffect(() => {
+  if (currentUser?.city && !weather && !loading && !error) {
    fetchWeatherByCity();
   }
- }, [currentUser, navigate, fetchWeatherByCity, city, loading]);
+ }, [currentUser, fetchWeatherByCity, weather, loading, error]);
 
 
  useEffect(() => {
@@ -170,15 +183,22 @@ const Forecast = () => {
 
  }, []);
 
+ // useEffect(() => {
+ //  if (isVoiceInput && transcript && city!=transcript) {
+ //   setCity(transcript); 
+ //  }
+ // }, [transcript, isVoiceInput, city]);
+
+  // Update city from transcript
  useEffect(() => {
-  if (isVoiceInput && transcript && city!=transcript) {
-   setCity(transcript); 
+  if (isVoiceInput && transcript && transcript.trim() !== '' && city !== transcript) {
+   setCity(transcript);
   }
  }, [transcript, isVoiceInput, city]);
-
- useEffect(() => {
-  console.log("Transcript:", transcript);
- }, [transcript]);
+ 
+ // useEffect(() => {
+ //  console.log("Transcript:", transcript);
+ // }, [transcript]);
 
  useEffect(() => {
   setIsVoiceInput(listening);
