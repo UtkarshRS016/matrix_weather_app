@@ -161,15 +161,15 @@ const Forecast = () => {
   else {
    fetchWeatherByCity();
   }
- }, []);
+ }, [currentUser]);
 
 
- useEffect(() => {
-  if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
-   alert("Browser does not support speech recognition");
-  }
+ // useEffect(() => {
+ //  if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
+ //   alert("Browser does not support speech recognition");
+ //  }
 
- }, []);
+ // }, []);
 
  useEffect(() => {
   if (isVoiceInput && transcript) {
@@ -248,7 +248,7 @@ const Forecast = () => {
         value={city}
         onChange={(e) => setCity(e.target.value)}
         className='bg-transparent w-full text-[rgb(3,7,18)] px-4 py-2  rounded-lg focus:outline-none' />
-       <img src={microphone} className='h-[20px] w-[20px] cursor-pointer mr-2'
+       <img src={microphone} alt="mic" className='h-[20px] w-[20px] cursor-pointer mr-2'
         onClick={listening ? stopListening : startListening}></img>
       </div>
 
@@ -279,7 +279,7 @@ const Forecast = () => {
          </h3>
          <div className='h-[20px] flex justify-center items-center cursor-pointer'
           onClick={speakWeather}>
-          <img className='h-full' src={megaphone}></img>
+          <img className='h-full' src={megaphone} alt=" "></img>
          </div>
         </div>
         <div className='grid lg:grid-cols-2 gap-2 grid-cols-1 '>
