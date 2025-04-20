@@ -1,151 +1,211 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
 import megaphone from '../images/megaphone.png'
 import microphone from '../images/microphone.png'
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
-const API_KEY = 'abf885a941d7a9364767f8f3d63138ab';
-
+// For Netlify, we'll use a proxy approach instead of direct API calls
+// This helps avoid CORS issues and protects your API key
 const Forecast = () => {
-
  const navigate = useNavigate();
- const currentUser = JSON.parse(localStorage.getItem('currentUser'));
  const { transcript, listening, resetTranscript } = useSpeechRecognition();
 
- const [city, setCity] = useState(currentUser?.city || '');
+ // Initialize state with safe defaults
+ const [currentUser, setCurrentUser] = useState(null);
+ const [city, setCity] = useState('');
  const [weather, setWeather] = useState(null);
  const [error, setError] = useState('');
  const [loading, setLoading] = useState(false);
- const [getSpeakWeather, setSpeakWeather] = useState(null)
+ const [getSpeakWeather, setSpeakWeather] = useState(null);
  const [isVoiceInput, setIsVoiceInput] = useState(false);
  
+ // Load user data on component mount
+ useEffect(() => {
+   try {
+     const userData = localStorage.getItem('currentUser');
+     if (userData) {
+       const user = JSON.parse(userData);
+       setCurrentUser(user);
+       if (user.city) {
+         setCity(user.city);
+       }
+     } else {
+       navigate('/login');
+     }
+   } catch (err) {
+     console.error("Error loading user data:", err);
+     navigate('/login');
+   }
+ }, [navigate]);
+
  const username = currentUser?.username || 'User';
 
  const saveCity = () => {
-  const updateCity = { ...currentUser, city: city };
-  localStorage.setItem('currentUser', JSON.stringify(updateCity));
+  if (!currentUser) {
+    alert("Please log in first to save your city.");
+    return;
+  }
+  
+  try {
+    const updateCity = { ...currentUser, city: city };
+    localStorage.setItem('currentUser', JSON.stringify(updateCity));
+    setCurrentUser(updateCity);
 
-  const users = JSON.parse(localStorage.getItem('users'));
-  const updateUsers = users.map(user =>
-   user.username === currentUser.username && user.password === currentUser.password ? updateCity : user);
-  localStorage.setItem('users', JSON.stringify(updateUsers));
+    const usersStr = localStorage.getItem('users');
+    if (usersStr) {
+      const users = JSON.parse(usersStr);
+      const updateUsers = users.map(user =>
+        user.username === currentUser.username && user.password === currentUser.password 
+          ? updateCity 
+          : user
+      );
+      localStorage.setItem('users', JSON.stringify(updateUsers));
+    }
 
-  alert("City Saved Successfully !");
-
+    alert("City Saved Successfully!");
+  } catch (err) {
+    console.error("Error saving city:", err);
+    alert("Failed to save city. Please try again.");
+  }
  }
 
  const handleLogout = () => {
   localStorage.removeItem('currentUser');
+  setCurrentUser(null);
   alert("Logged out successfully");
   navigate('/login');
  };
 
- const fetchWeatherByCity = useCallback(async () => {
-  if (!city)
-   return
-  try {
+ // Separate function to handle search button click
+ const handleSearch = () => {
+   if (!city.trim()) {
+     setError('Please enter a city name');
+     return;
+   }
+   
+   fetchWeather(city);
+ };
+
+ // Generic weather fetching function that can be reused
+ const fetchWeather = async (cityName) => {
+   if (!cityName) return;
+   
    setLoading(true);
    setError('');
    setWeather(null);
-
-   const res = await fetch(
-    `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
-   )
-
-   const data = await res.json();
-
-   console.log(data);
-
-   if (data.cod !== 200) {
-    setError(data.message || 'City Not Found')
+   
+   try {
+     // Using proxy approach - this URL needs to be configured in netlify.toml
+     // You'll need to set up a Netlify function or use a service like Netlify or Vercel proxy
+     const API_KEY = 'abf885a941d7a9364767f8f3d63138ab'; // Using hard-coded key temporarily
+     const response = await fetch(
+       `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(cityName)}&appid=${API_KEY}&units=metric`,
+       { 
+         method: 'GET',
+         headers: {
+           'Accept': 'application/json',
+           'Content-Type': 'application/json'
+         },
+       }
+     );
+     
+     // Check if the response is ok before trying to parse JSON
+     if (!response.ok) {
+       const errorText = await response.text();
+       throw new Error(`API error: ${response.status} - ${errorText}`);
+     }
+     
+     const data = await response.json();
+     
+     if (data.cod !== 200) {
+       setError(data.message || 'City Not Found');
+     } else {
+       setWeather(data);
+       setSpeakWeather(data);
+     }
+   } catch (err) {
+     console.error('Weather fetch error:', err);
+     setError(`Failed to fetch weather data: ${err.message}`);
+   } finally {
+     setLoading(false);
    }
-   else {
-    setWeather(data);
-    setSpeakWeather(data)
-   }
-  }
-  catch (err) {
-   setError('Something went Wrong. Try again.')
-   console.log('error fetching weather ', err);
-  }
-  finally {
-   setLoading(false);
-  }
- },[city])
+ };
 
  const fetchWeatherByLocation = () => {
   if (!navigator.geolocation) {
-   alert('Geolocation is not supported by your browser.')
-   return
+   alert('Geolocation is not supported by your browser.');
+   return;
   }
 
+  setLoading(true);
+  setError('');
+  
   navigator.geolocation.getCurrentPosition(
    async (position) => {
     const { latitude, longitude } = position.coords;
 
     try {
-     setLoading(true);
-     setError('');
-     setWeather(null);
-
-     const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`
-     )
-
-     const data = await res.json();
+     const API_KEY = 'abf885a941d7a9364767f8f3d63138ab'; // Using hard-coded key temporarily
+     const response = await fetch(
+       `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`,
+       { 
+         method: 'GET',
+         headers: {
+           'Accept': 'application/json',
+           'Content-Type': 'application/json'
+         },
+       }
+     );
+     
+     if (!response.ok) {
+       const errorText = await response.text();
+       throw new Error(`API error: ${response.status} - ${errorText}`);
+     }
+     
+     const data = await response.json();
 
      if (data.cod !== 200) {
       setError(data.message || 'Unable to get weather for your location');
-     }
-     else {
+     } else {
       setWeather(data);
       setSpeakWeather(data);
-      setCity(city);
+      setCity(data.name); // Set the city name based on geolocation
      }
-
-    }
-    catch (err) {
-     setError('Error fecthing location. Try again.')
-     console.log('error fetching weather ', err);
-    }
-    finally {
+    } catch (err) {
+     console.error('Error fetching weather by location:', err);
+     setError(`Location weather error: ${err.message}`);
+    } finally {
      setLoading(false);
     }
-
-   }, () => {
-    alert('Location access denied');
-   })
-
-  setCity('');
-  setWeather(null);
-  setSpeakWeather(null)
-
+   }, 
+   (err) => {
+    console.error('Geolocation error:', err);
+    setError('Location access denied or error occurred.');
+    setLoading(false);
+   },
+   { timeout: 10000 } // 10 second timeout for geolocation
+  );
  }
 
  const speakWeather = () => {
-  if (!getSpeakWeather)
-   return
+  if (!getSpeakWeather) return;
 
   const city = getSpeakWeather.name;
   const temp = getSpeakWeather.main.temp;
   const wind = getSpeakWeather.wind.speed;
   const humidity = getSpeakWeather.main.humidity;
 
-  const message = `The current temperature in ${city} is ${temp} degrees celsius, with the wind blowing at the speed of ${wind}meters per second and the humidity is ${humidity}percent.`
+  const message = `The current temperature in ${city} is ${temp} degrees celsius, with the wind blowing at the speed of ${wind} meters per second and the humidity is ${humidity} percent.`;
 
   const utterance = new SpeechSynthesisUtterance(message);
   utterance.lang = 'en-US';
   speechSynthesis.speak(utterance);
-
  }
-
 
  const startListening = () => {
   setIsVoiceInput(true);
   resetTranscript();
   SpeechRecognition.startListening({ continuous: false });
-
-  console.log(transcript);
  }
 
  const stopListening = () => {
@@ -153,69 +213,45 @@ const Forecast = () => {
   setIsVoiceInput(false);
  };
 
+ // Fetch weather when city is saved in user data
+ useEffect(() => {
+   if (currentUser?.city && !city && !weather) {
+     setCity(currentUser.city);
+     fetchWeather(currentUser.city);
+   }
+ }, [currentUser, city, weather]);
 
- // useEffect(() => {
- //  if (!currentUser) {
- //   navigate('/login');
- //  }
- //  else if(city && !loading){
- //   fetchWeatherByCity();
- //  }
- // }, [currentUser, navigate, fetchWeatherByCity, city, loading]);
-
-  useEffect(() => {
-  if (!currentUser || !currentUser.username) {
-   navigate('/login');
-  }
- }, [currentUser, navigate]);
-
-  useEffect(() => {
-  if (currentUser?.city && !weather && !loading && !error) {
-   fetchWeatherByCity();
-  }
- }, [currentUser, fetchWeatherByCity, weather, loading, error]);
-
-
+ // Handle speech recognition browser support check
  useEffect(() => {
   if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
-   alert("Browser does not support speech recognition");
+   console.warn("Browser does not support speech recognition");
   }
-
  }, []);
 
- // useEffect(() => {
- //  if (isVoiceInput && transcript && city!=transcript) {
- //   setCity(transcript); 
- //  }
- // }, [transcript, isVoiceInput, city]);
-
-  // Update city from transcript
+ // Update city from transcript once speech recognition completes
  useEffect(() => {
-  if (isVoiceInput && transcript && transcript.trim() !== '' && city !== transcript) {
+  if (isVoiceInput && transcript && transcript.trim() !== '') {
    setCity(transcript);
+   // Don't auto-search after voice input to avoid immediate API calls
   }
- }, [transcript, isVoiceInput, city]);
- 
- // useEffect(() => {
- //  console.log("Transcript:", transcript);
- // }, [transcript]);
+ }, [transcript, isVoiceInput]);
 
+ // Update isVoiceInput based on listening state
  useEffect(() => {
   setIsVoiceInput(listening);
- }, [listening])
-
+ }, [listening]);
 
  return (
   <>
-   <div className='min-w-full h-full bg-[#0E2F1B]/80 rounded-lg p-2 flex justify-between items-center flex-col '>
+   <div className='min-w-full h-full bg-[#0E2F1B]/80 rounded-lg p-2 flex justify-between items-center flex-col'>
 
     <div className='flex flex-grow items-center flex-col'>
 
      <div className='flex justify-center items-center flex-col mb-1'>
       <h2 className='text-2xl font-semibold mb-4 text-[#E8F0EB]'>
-       Welcome, {username.charAt(0).toUpperCase() + username.slice(1)}.
+       Welcome, {username.charAt(0).toUpperCase() + username.slice(1)}
       </h2>
-      <p className='text-[#E8F0EB] px-4 py-2 text-center'>Where to next? Search a city and we’ll handle the forecast.</p>
+      <p className='text-[#E8F0EB] px-4 py-2 text-center'>Where to next? Search a city and we'll handle the forecast.</p>
      </div>
 
      <div className='mb-4 grid grid-cols-12 lg:w-[600px] gap-4'>
@@ -224,20 +260,25 @@ const Forecast = () => {
         placeholder='Write here...'
         value={city}
         onChange={(e) => setCity(e.target.value)}
-        className='bg-transparent w-full text-[rgb(3,7,18)] px-4 py-2  rounded-lg focus:outline-none' />
+        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+        className='bg-transparent w-full text-[rgb(3,7,18)] px-4 py-2 rounded-lg focus:outline-none' />
        <img src={microphone} alt="mic" className='h-[20px] w-[20px] cursor-pointer mr-2'
-        onClick={listening ? stopListening : startListening}></img>
+        onClick={listening ? stopListening : startListening} />
       </div>
 
-      <button className='lg:col-span-2 col-span-6 lg:w-full w-[150px] lg:h-[50px] h-[40px] bg-[#AFCBC4] text-[#5B6C67] hover:text-[#0E2F1B] p-2 border rounded-lg'
-       onClick={fetchWeatherByCity}>
+      <button 
+       className='lg:col-span-2 col-span-6 lg:w-full w-[150px] lg:h-[50px] h-[40px] bg-[#AFCBC4] text-[#5B6C67] hover:text-[#0E2F1B] p-2 border rounded-lg'
+       onClick={handleSearch}
+       disabled={loading}>
        {loading ? 'Loading...' : 'Search'}
       </button>
 
-      <button className='lg:col-span-3 col-span-6 lg:w-full w-[150px] lg:h-[50px] h-[40px] bg-[#AFCBC4] text-[#5B6C67] hover:text-[#0E2F1B] p-2 border rounded-lg '
-       onClick={saveCity}>Save this city
+      <button 
+       className='lg:col-span-3 col-span-6 lg:w-full w-[150px] lg:h-[50px] h-[40px] bg-[#AFCBC4] text-[#5B6C67] hover:text-[#0E2F1B] p-2 border rounded-lg'
+       onClick={saveCity}
+       disabled={!city}>
+        Save this city
       </button>
-
      </div>
 
      {listening && <p className="text-sm text-green-300 mt-1">🎙️ Listening...</p>}
@@ -247,19 +288,18 @@ const Forecast = () => {
      {error && <p className="text-red-400 mb-2">{error}</p>}
 
      {weather && (
-      <div className='w-full lg:h-[150px]  mt-4 flex justify-center'>
-       <div className='bg-white lg:w-full w-[75%] h-full bg-opacity-10 rounded-md p-4 backdrop-blur-sm
-      text-white space-y-2'>
+      <div className='w-full lg:h-[150px] mt-4 flex justify-center'>
+       <div className='bg-white lg:w-full w-[75%] h-full bg-opacity-10 rounded-md p-4 backdrop-blur-sm text-white space-y-2'>
         <div className='flex gap-4'>
          <h3 className='text-xl font-bold'>
           {weather.name}, {weather.sys.country}
          </h3>
          <div className='h-[20px] flex justify-center items-center cursor-pointer'
           onClick={speakWeather}>
-          <img className='h-full' src={megaphone} alt=" "></img>
+          <img className='h-full' src={megaphone} alt="speak" />
          </div>
         </div>
-        <div className='grid lg:grid-cols-2 gap-2 grid-cols-1 '>
+        <div className='grid lg:grid-cols-2 gap-2 grid-cols-1'>
          <p>🌡 Temp: {weather.main.temp} °C</p>
          <p>🌡 Feels Like: {weather.main.feels_like} °C</p>
          <p>🌥 Weather: {weather.weather[0].description}</p>
@@ -269,7 +309,6 @@ const Forecast = () => {
        </div>
       </div>
      )}
-
     </div>
 
     <button
@@ -277,7 +316,6 @@ const Forecast = () => {
      className='bg-[#AFCBC4] text-[#5B6C67] hover:text-[#0E2F1B] p-2 border rounded-lg mb-2'>
      Log out
     </button>
-
    </div>
   </>
  )
