@@ -18,8 +18,7 @@ const Forecast = () => {
  const [loading, setLoading] = useState(false);
  const [getSpeakWeather, setSpeakWeather] = useState(null)
  const [isVoiceInput, setIsVoiceInput] = useState(false);
- //  const [finalTranscript, setFinalTranscript] = useState('');
-
+ 
  const username = currentUser?.username || 'User';
 
  const saveCity = () => {
@@ -41,7 +40,7 @@ const Forecast = () => {
   navigate('/login');
  };
 
- const fetchWeatherByCity = async () => {
+ const fetchWeatherByCity = useCallback(async () => {
   if (!city)
    return
   try {
@@ -72,7 +71,7 @@ const Forecast = () => {
   finally {
    setLoading(false);
   }
- }
+ },[city])
 
  const fetchWeatherByLocation = () => {
   if (!navigator.geolocation) {
@@ -161,19 +160,19 @@ const Forecast = () => {
   else {
    fetchWeatherByCity();
   }
- }, [currentUser]);
+ }, [currentUser, navigate, fetchWeatherByCity]);
 
 
- // useEffect(() => {
- //  if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
- //   alert("Browser does not support speech recognition");
- //  }
+ useEffect(() => {
+  if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
+   alert("Browser does not support speech recognition");
+  }
 
- // }, []);
+ }, []);
 
  useEffect(() => {
   if (isVoiceInput && transcript) {
-   setCity(transcript); // Live update input
+   setCity(transcript); 
   }
  }, [transcript, isVoiceInput]);
 
@@ -184,48 +183,6 @@ const Forecast = () => {
  useEffect(() => {
   setIsVoiceInput(listening);
  }, [listening])
-
-
-//  const getTempStyle = (temp, condition) => {
-//   if (condition.includes('rain')) {
-//    return {
-//     shadow: '0 2px 20px 15px rgba(54, 162, 235, 0.5)',
-//     color: '#36A2EB', // Blue shade for rain
-//    };
-//   }
-
-//   if (temp <= 5) {
-//    return {
-//     shadow: '0 2px 20px 15px rgba(0, 183, 255, 0.5)',
-//     color: '#00B7FF', // Freezing
-//    };
-//   } else if (temp <= 15) {
-//    return {
-//     shadow: '0 2px 20px 15px rgba(0, 149, 255, 0.5)',
-//     color: '#0095FF', // Cold
-//    };
-//   } else if (temp <= 25) {
-//    return {
-//     shadow: '0 2px 20px 15px rgba(255, 193, 7, 0.5)',
-//     color: '#FFC107', // Mild
-//    };
-//   } else if (temp <= 35) {
-//    return {
-//     shadow: '0 2px 20px 15px rgba(235, 107, 34, 0.5)',
-//     color: '#FF5722', // Warm
-//    };
-//   } else {
-//    return {
-//     shadow: '0 2px 20px 15px rgba(244, 67, 54, 0.6)',
-//     color: '#F44336', // Hot
-//    };
-//   }
-//  };
-
-//  const temp = weather?.main?.temp;
-//  const condition = weather?.weather?.[0]?.description?.toLowerCase() || '';
-//  const tempStyle = temp !== undefined ? getTempStyle(temp, condition) : {};
-
 
 
  return (
