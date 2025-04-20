@@ -157,10 +157,10 @@ const Forecast = () => {
   if (!currentUser) {
    navigate('/login');
   }
-  else if(city){
+  else if(city && !loading){
    fetchWeatherByCity();
   }
- }, [currentUser, navigate, fetchWeatherByCity, city]);
+ }, [currentUser, navigate, fetchWeatherByCity, city, loading]);
 
 
  useEffect(() => {
@@ -171,10 +171,10 @@ const Forecast = () => {
  }, []);
 
  useEffect(() => {
-  if (isVoiceInput && transcript) {
+  if (isVoiceInput && transcript && city!=transcript) {
    setCity(transcript); 
   }
- }, [transcript, isVoiceInput]);
+ }, [transcript, isVoiceInput, city]);
 
  useEffect(() => {
   console.log("Transcript:", transcript);
